@@ -1,0 +1,335 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "params": [
+    {
+      "name": "selected_continent",
+      "value": "All",
+      "bind": {
+        "input": "select",
+        "options": [
+          "All",
+          "North America",
+          "Europe",
+          "South America",
+          "Oceania",
+          "Asia",
+          "Africa"
+        ],
+        "labels": [
+          "All",
+          "North America",
+          "Europe",
+          "South America",
+          "Oceania",
+          "Asia",
+          "Africa"
+        ],
+        "name": "Select Continent:  "
+      }
+    },
+    {
+      "name": "selected_year",
+      "value": 2020,
+      "bind": {
+        "input": "range",
+        "min": 1870,
+        "max": 2020,
+        "step": 10,
+        "name": "Select Year: "
+      }
+    }
+  ],
+  "title": {
+    "text": "Global CO₂ Emissions Data (1860-2020)",
+    "fontSize": 24,
+    "fontWeight": "bold",
+    "align": "center",
+    "anchor": "middle",
+    "color": "black",
+    "dy": -20
+  },
+  "vconcat": [
+    {
+      "hconcat": [
+        {
+          "data": {
+            "url": "https://raw.githubusercontent.com/roniyap/co2_emissions/refs/heads/main/data3.csv"
+          },
+          "width": 400,
+          "transform": [
+            {
+              "filter": "datum.Continent == selected_continent || selected_continent == 'All'"
+            },
+            {"filter": "(datum.Year % 20) == 0 && datum.Year >= 1860"},
+            {
+              "aggregate": [
+                {
+                  "op": "sum",
+                  "field": "CO2_emission_Tons",
+                  "as": "Total_CO2_emission_Tons"
+                }
+              ],
+              "groupby": ["Year"]
+            },
+            {
+              "calculate": "round(datum.Total_CO2_emission_Tons / 1e9 * 100) / 100",
+              "as": "Total_CO2_emission_Billion_Tons"
+            }
+          ],
+          "layer": [
+            {
+              "mark": "line",
+              "encoding": {
+                "x": {
+                  "field": "Year",
+                  "type": "ordinal",
+                  "axis": {"labelAngle": 0, "labelFontSize": 10}
+                },
+                "y": {
+                  "field": "Total_CO2_emission_Billion_Tons",
+                  "type": "quantitative",
+                  "title": "Total CO₂ Emissions (Billion Tons)"
+                },
+                "tooltip": [
+                  {
+                    "field": "Total_CO2_emission_Billion_Ton",
+                    "type": "quantitative"
+                  }
+                ]
+              }
+            },
+            {
+              "mark": "circle",
+              "encoding": {
+                "x": {"field": "Year", "type": "ordinal", "title": null},
+                "y": {
+                  "field": "Total_CO2_emission_Billion_Tons",
+                  "type": "quantitative"
+                },
+                "tooltip": [
+                  {
+                    "field": "Total_CO2_emission_Billion_Tons",
+                    "type": "quantitative",
+                    "title": "Total CO₂ Emissions: "
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "data": {
+            "url": "https://raw.githubusercontent.com/roniyap/co2_emissions/refs/heads/main/data3.csv"
+          },
+          "width": 600,
+          "transform": [
+            {
+              "filter": "datum.Year == selected_year && (datum.Continent == selected_continent || selected_continent == 'All')"
+            },
+            {
+              "calculate": "round(datum.CO2_emission_Tons / 1e9 * 100) / 100",
+              "as": "CO2_emission_Billion_Tons"
+            },
+            {"filter": "datum.CO2_emission_Billion_Tons > 0"},
+            {
+              "window": [{"op": "rank", "as": "rank"}],
+              "sort": [
+                {"field": "CO2_emission_Billion_Tons", "order": "descending"}
+              ]
+            },
+            {"filter": "datum.rank <= 5"}
+          ],
+          "mark": "bar",
+          "encoding": {
+            "x": {
+              "field": "Country",
+              "type": "nominal",
+              "sort": "-y",
+              "axis": {"labelAngle": 0, "labelFontSize": 10, "title": null}
+            },
+            "y": {
+              "field": "CO2_emission_Billion_Tons",
+              "type": "quantitative",
+              "title": "CO₂ Emissions (Billion Tons)"
+            },
+            "color": {
+              "field": "Continent",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "North America",
+                  "Europe",
+                  "South America",
+                  "Oceania",
+                  "Asia",
+                  "Africa"
+                ],
+                "range": [
+                  "#d62728",
+                  "#1f77b4",
+                  "#2ca02c",
+                  "#984ea3",
+                  "#ff7f0e",
+                  "#ffff33"
+                ]
+              }
+            },
+            "tooltip": [
+              {
+                "field": "CO2_emission_Billion_Tons",
+                "type": "quantitative",
+                "title": "CO₂ Emissions: "
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "hconcat": [
+        {
+          "width": 500,
+          "height": 250,
+          "layer": [
+            {
+              "data": {
+                "url": "https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson",
+                "format": {"type": "json", "property": "features"}
+              },
+              "mark": {"type": "geoshape", "fill": "#eee"}
+            },
+            {
+              "data": {
+                "url": "https://raw.githubusercontent.com/roniyap/co2_emissions/refs/heads/main/data3.csv"
+              },
+              "transform": [
+                {
+                  "calculate": "round(datum.Area / 1e6 * 100) / 100",
+                  "as": "Area"
+                },
+                {"filter": "datum.Year == selected_year"},
+                {
+                  "filter": "datum.Continent == selected_continent || selected_continent == 'All'"
+                },
+                {
+                  "calculate": "max(datum.CO2_per_km2, 0.1)",
+                  "as": "nonzero_CO2"
+                },
+                {
+                  "lookup": "Code",
+                  "from": {
+                    "data": {
+                      "url": "https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson",
+                      "format": {"type": "json", "property": "features"}
+                    },
+                    "key": "properties.iso_a2",
+                    "fields": ["type", "geometry", "properties"]
+                  }
+                }
+              ],
+              "projection": {"type": "equirectangular"},
+              "mark": {"type": "geoshape"},
+              "encoding": {
+                "color": {
+                  "field": "nonzero_CO2",
+                  "type": "quantitative",
+                  "title": "CO₂ (Tons/km²)",
+                  "scale": {
+                    "scheme": "reds",
+                    "type": "log",
+                    "base": 10,
+                    "clamp": true
+                  }
+                },
+                "tooltip": [
+                  {"field": "Country", "type": "nominal", "title": "Country: "},
+                  {
+                    "field": "Area",
+                    "type": "quantitative",
+                    "title": "Area (Million km²): "
+                  },
+                  {
+                    "field": "CO2_per_km2",
+                    "type": "quantitative",
+                    "title": "CO₂ Emissions (Tons/km²): "
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "width": 400,
+          "data": {
+            "url": "https://raw.githubusercontent.com/roniyap/co2_emissions/refs/heads/main/data3.csv"
+          },
+          "transform": [
+            {"filter": "datum.Year == selected_year"},
+            {
+              "filter": "datum.Continent == selected_continent || selected_continent == 'All'"
+            },
+            {
+              "calculate": "round(datum.Population_2022 / 1e6 * 100) / 100",
+              "as": "Population"
+            }
+          ],
+          "mark": "circle",
+          "encoding": {
+            "x": {
+              "field": "Population",
+              "type": "quantitative",
+              "title": "Population (Millions)"
+            },
+            "y": {
+              "field": "CO2_per_capita",
+              "type": "quantitative",
+              "title": "CO₂ per Capita (Tons/person)"
+            },
+            "size": {
+              "field": "CO2_emission_Tons",
+              "type": "quantitative",
+              "legend": null
+            },
+            "color": {
+              "field": "Continent",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "North America",
+                  "Europe",
+                  "South America",
+                  "Oceania",
+                  "Asia",
+                  "Africa"
+                ],
+                "range": [
+                  "#d62728",
+                  "#1f77b4",
+                  "#2ca02c",
+                  "#984ea3",
+                  "#ff7f0e",
+                  "#ffff33"
+                ]
+              },
+              "legend": null
+            },
+            "tooltip": [
+              {"field": "Country", "type": "nominal", "title": "Country: "},
+              {
+                "field": "Population",
+                "type": "quantitative",
+                "title": "Population (Millions): "
+              },
+              {
+                "field": "CO2_per_capita",
+                "type": "quantitative",
+                "title": "CO₂ per person:"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "config": {}
+}
